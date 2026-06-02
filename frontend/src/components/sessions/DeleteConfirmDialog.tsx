@@ -1,0 +1,58 @@
+"use client";
+
+import { Trash2 } from "lucide-react";
+
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  sessionName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export default function DeleteConfirmDialog({
+  open,
+  sessionName,
+  onConfirm,
+  onCancel,
+}: DeleteConfirmDialogProps) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-[#1a1a1e] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 p-6 max-w-sm w-full mx-4 animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="size-9 rounded-xl bg-red-500/10 flex items-center justify-center">
+            <Trash2 className="size-4 text-red-400" />
+          </div>
+          <h2 className="font-semibold text-white">Delete session?</h2>
+        </div>
+        <p className="text-sm text-[#8a8a8f] mb-6">
+          <span className="text-white font-medium">
+            &ldquo;{sessionName}&rdquo;
+          </span>{" "}
+          and all its messages will be permanently deleted.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm rounded-xl border border-white/[0.08] text-[#8a8a8f] hover:bg-white/[0.04] hover:text-white transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm rounded-xl bg-red-500/20 border border-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-all"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
