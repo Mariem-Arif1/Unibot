@@ -36,6 +36,3 @@ class GeminiProvider:
             if chunk.text:
                 yield chunk.text
 
-
-# Make it satisfy the LLMProvider Protocol
-assert isinstance(GeminiProvider(), LLMProvider)  # type: ignore[arg-type]

@@ -4,14 +4,14 @@ from pydantic import BaseModel, field_validator
 
 
 class SessionCreate(BaseModel):
-    bot_id: str
+    agent_id: str
     name: str | None = None
 
-    @field_validator("bot_id")
+    @field_validator("agent_id")
     @classmethod
-    def bot_id_not_empty(cls, v: str) -> str:
+    def agent_id_not_empty(cls, v: str) -> str:
         if not v or not v.strip():
-            raise ValueError("bot_id is required")
+            raise ValueError("agent_id is required")
         return v.strip()
 
     @field_validator("name")
@@ -39,7 +39,7 @@ class SessionUpdate(BaseModel):
 class SessionOut(BaseModel):
     id: str
     user_id: str
-    bot_id: str
+    agent_id: str
     name: str
     is_saved: bool
     created_at: datetime

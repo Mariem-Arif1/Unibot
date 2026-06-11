@@ -8,6 +8,7 @@ class BotOut(BaseModel):
     provider: str
     model: str
     is_active: bool
+    agent_type: str | None = None
 
     model_config = {"from_attributes": True}
 

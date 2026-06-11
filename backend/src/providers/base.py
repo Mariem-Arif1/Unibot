@@ -1,5 +1,8 @@
 from dataclasses import dataclass
-from typing import AsyncIterator, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, AsyncIterator, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from src.tools.registry import AgentToolset
 
 
 @dataclass
@@ -15,6 +18,11 @@ class LLMProviderConfig:
 
 @runtime_checkable
 class LLMProvider(Protocol):
+    """Base protocol — all providers must implement `stream`.
+    Providers that support tool-calling also implement `stream_with_tools`.
+    Use `hasattr(provider, "stream_with_tools")` to check capability at runtime.
+    """
+
     async def stream(
         self,
         messages: list[dict],

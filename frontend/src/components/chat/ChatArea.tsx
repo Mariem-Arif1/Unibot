@@ -10,10 +10,11 @@ import { createSession, saveSession } from "@/services/sessionService";
 import RayBackground from "@/components/layout/RayBackground";
 import MessageBubble from "./MessageBubble";
 import StreamingBubble from "./StreamingBubble";
+import ToolCallIndicator from "./ToolCallIndicator";
 import MessageInput from "./MessageInput";
 
 export default function ChatArea() {
-  const { currentSession, currentBot, messages, isStreaming, streamingContent, error } =
+  const { currentSession, currentAgent, messages, isStreaming, streamingContent, error, activeToolCall, lastToolResult } =
     useChatState();
   const dispatch = useChatDispatch();
   const { sendMessage } = useChat();
@@ -88,10 +89,10 @@ export default function ChatArea() {
 
     // If no session exists yet, create one then send
     if (!currentSession) {
-      if (!currentBot || creatingSession) return;
+      if (!currentAgent || creatingSession) return;
       setCreatingSession(true);
       try {
-        const session = await createSession(currentBot.id);
+        const session = await createSession(currentAgent.id);
         pendingMessage.current = content;
         dispatch({ type: "ADD_SESSION", session });
         dispatch({ type: "SET_SESSION", session, messages: [] });
@@ -126,7 +127,6 @@ export default function ChatArea() {
               onChange={setInputValue}
               onSend={handleSend}
               disabled={creatingSession}
-              currentBot={currentBot}
             />
           </div>
         </div>
@@ -180,10 +180,16 @@ export default function ChatArea() {
         ))}
 
         {isStreaming && (
-          <StreamingBubble
-            content={streamingContent}
-            isWaiting={!streamingContent}
-          />
+          <>
+            <ToolCallIndicator
+              tool={activeToolCall?.tool ?? null}
+              lastResult={lastToolResult ? { rowCount: lastToolResult.rowCount, success: lastToolResult.success } : null}
+            />
+            <StreamingBubble
+              content={streamingContent}
+              isWaiting={!streamingContent && activeToolCall === null}
+            />
+          </>
         )}
 
         {error && !isStreaming && (
@@ -208,7 +214,6 @@ export default function ChatArea() {
         onChange={setInputValue}
         onSend={handleSend}
         disabled={isStreaming}
-        currentBot={currentBot}
       />
     </div>
   );

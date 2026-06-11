@@ -7,6 +7,16 @@ export interface User {
   created_at: string;
 }
 
+export interface Agent {
+  id: string;
+  name: string;
+  description: string | null;
+  agent_type: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+/** Legacy model config — kept for the /bots admin API. Not used in main app flow. */
 export interface Bot {
   id: string;
   name: string;
@@ -14,12 +24,13 @@ export interface Bot {
   provider: "anthropic" | "openai" | "gemini";
   model: string;
   is_active: boolean;
+  agent_type: string | null;
 }
 
 export interface ChatSession {
   id: string;
   user_id?: string;
-  bot_id: string;
+  agent_id: string;
   name: string;
   is_saved: boolean;
   created_at: string;

@@ -10,12 +10,15 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
+from src.models.agent import Agent
 from src.models.audit_log import AuditLog
-from src.models.bot import Bot
 from src.models.chat_session import ChatSession
+from src.models.organization import Organization
+from src.models.user import User
 from src.providers.base import LLMProviderConfig
 from src.providers.provider_factory import get_provider
 from src.services.message_service import MessageService
+from src.tools.registry import AGENT_TOOLS
 
 _TITLE_SYSTEM_PROMPT = (
     "You decide whether a conversation is worth saving, then title it.\n"
@@ -75,10 +78,10 @@ async def _get_or_create_lock(session_id: str) -> asyncio.Lock:
         return _session_locks[session_id]
 
 
-def _build_payload(history: list, bot: Bot) -> list[dict]:
+def _build_payload(history: list, agent: Agent) -> list[dict]:
     """Inject system prompt (with reasoning protocol) and truncate history to fit context_window_tokens."""
-    effective_system_prompt = bot.system_prompt + _REASONING_SUFFIX
-    budget = bot.context_window_tokens - len(effective_system_prompt) // _CHARS_PER_TOKEN
+    effective_system_prompt = agent.system_prompt + _REASONING_SUFFIX
+    budget = agent.context_window_tokens - len(effective_system_prompt) // _CHARS_PER_TOKEN
 
     # Build from newest to oldest, then reverse
     selected = []
@@ -100,19 +103,27 @@ class ChatService:
     def __init__(self):
         self._message_svc = MessageService()
 
-    async def _generate_title(self, user_msg: str, assistant_msg: str, bot: Bot, api_key: str) -> str | None:
-        """Generate a short title for a conversation using the bot's LLM provider."""
+    async def _generate_title(
+        self,
+        user_msg: str,
+        assistant_msg: str,
+        agent: Agent,
+        api_key: str,
+        effective_provider: str,
+        effective_model: str,
+    ) -> str | None:
+        """Generate a short title using the currently active provider/model."""
         try:
             config = LLMProviderConfig(
-                provider=bot.provider,
-                model=bot.model,
+                provider=effective_provider,
+                model=effective_model,
                 api_key=api_key,
                 system_prompt=_TITLE_SYSTEM_PROMPT,
                 temperature=0.3,
                 max_tokens=_TITLE_MAX_TOKENS,
-                context_window_tokens=bot.context_window_tokens,
+                context_window_tokens=agent.context_window_tokens,
             )
-            provider = get_provider(bot.provider)
+            provider = get_provider(effective_provider)
             payload = [
                 {"role": "system", "content": _TITLE_SYSTEM_PROMPT},
                 {
@@ -139,28 +150,39 @@ class ChatService:
         user_id: str,
         content: str,
         db: AsyncSession,
+        provider_override: str | None = None,
+        model_override: str | None = None,
     ) -> AsyncIterator[str]:
-        # Load bot
-        result = await db.execute(select(Bot).where(Bot.id == session.bot_id))
-        bot = result.scalar_one_or_none()
-        if bot is None or not bot.is_active:
+        # Load agent
+        result = await db.execute(select(Agent).where(Agent.id == session.agent_id))
+        agent = result.scalar_one_or_none()
+        if agent is None or not agent.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Bot is not available.",
+                detail="Agent is not available.",
             )
 
-        # Check API key is configured
+        # Require a model override — agents don't own a provider/model
+        if not provider_override or not model_override:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="provider and model are required.",
+            )
+        effective_provider = provider_override
+        effective_model = model_override
+
+        # Check API key is configured for the effective provider
         settings = get_settings()
         _key_map = {
             "anthropic": settings.anthropic_api_key,
             "openai": settings.openai_api_key,
             "gemini": settings.gemini_api_key,
         }
-        api_key = _key_map.get(bot.provider, "")
+        api_key = _key_map.get(effective_provider, "")
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Provider '{bot.provider}' API key not configured.",
+                detail=f"Provider '{effective_provider}' API key not configured.",
             )
 
         # Concurrency guard
@@ -171,17 +193,55 @@ class ChatService:
                 detail="A response is already being generated for this session.",
             )
 
-        return self._stream_generator(session, user_id, content, bot, api_key, db, lock)
+        # Resolve BC org context for this user (company name + optional per-org DSN)
+        tool_context = await self._resolve_tool_context(user_id, db)
+
+        return self._stream_generator(
+            session, user_id, content, agent, api_key, db, lock,
+            effective_provider=effective_provider,
+            effective_model=effective_model,
+            tool_context=tool_context,
+        )
+
+    async def _resolve_tool_context(self, user_id: str, db: AsyncSession) -> dict:
+        """Return BC connection context from the user's organization.
+
+        Keys: ``bc_company_name``, ``bc_database_url``.
+        Returns an empty dict if the user has no org — executors will fall back
+        to the global BC_* env vars via get_settings().
+        """
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if user is None or user.organization_id is None:
+            return {}
+
+        org_result = await db.execute(
+            select(Organization).where(
+                Organization.id == user.organization_id,
+                Organization.is_active == True,  # noqa: E712
+            )
+        )
+        org = org_result.scalar_one_or_none()
+        if org is None:
+            return {}
+
+        return {
+            "bc_company_name": org.bc_company_name,
+            "bc_database_url": org.bc_database_url or "",
+        }
 
     async def _stream_generator(
         self,
         session: ChatSession,
         user_id: str,
         content: str,
-        bot: Bot,
+        agent: Agent,
         api_key: str,
         db: AsyncSession,
         lock: asyncio.Lock,
+        effective_provider: str,
+        effective_model: str,
+        tool_context: dict | None = None,
     ) -> AsyncIterator[str]:
         async with lock:
             # Persist user message
@@ -190,25 +250,44 @@ class ChatService:
             # Load history for context
             from src.services.message_service import _MAX_PAGE_SIZE
             msgs, _ = await self._message_svc.list_messages(session.id, 1, _MAX_PAGE_SIZE, db)
-            payload = _build_payload(msgs, bot)
+            payload = _build_payload(msgs, agent)
 
             config = LLMProviderConfig(
-                provider=bot.provider,
-                model=bot.model,
+                provider=effective_provider,
+                model=effective_model,
                 api_key=api_key,
-                system_prompt=bot.system_prompt + _REASONING_SUFFIX,
-                temperature=bot.temperature,
-                max_tokens=bot.max_tokens,
-                context_window_tokens=bot.context_window_tokens,
+                system_prompt=agent.system_prompt + _REASONING_SUFFIX,
+                temperature=agent.temperature,
+                max_tokens=agent.max_tokens,
+                context_window_tokens=agent.context_window_tokens,
             )
 
-            provider = get_provider(bot.provider)
+            provider = get_provider(effective_provider)
             assembled: list[str] = []
 
+            # Determine whether this agent has tools and whether the provider supports them
+            toolset = AGENT_TOOLS.get(agent.agent_type) if agent.agent_type else None
+            use_tools = toolset is not None and hasattr(provider, "stream_with_tools")
+            if toolset and not use_tools:
+                logger.warning(
+                    "agent_type=%s requested tools but provider=%s does not support "
+                    "stream_with_tools — falling back to plain stream",
+                    agent.agent_type,
+                    effective_provider,
+                )
+
             try:
-                async for token in provider.stream(payload, config):
-                    assembled.append(token)
-                    yield f"event: token\ndata: {json.dumps({'token': token})}\n\n"
+                if use_tools:
+                    async for item in provider.stream_with_tools(payload, config, toolset, tool_context or {}):
+                        if isinstance(item, str):
+                            assembled.append(item)
+                            yield f"event: token\ndata: {json.dumps({'token': item})}\n\n"
+                        else:
+                            yield f"event: {item['event']}\ndata: {json.dumps(item['data'])}\n\n"
+                else:
+                    async for token in provider.stream(payload, config):
+                        assembled.append(token)
+                        yield f"event: token\ndata: {json.dumps({'token': token})}\n\n"
 
                 # Persist complete assistant message
                 full_response = "".join(assembled)
@@ -221,18 +300,22 @@ class ChatService:
                     action="llm.invoked",
                     entity_type="chat_session",
                     entity_id=session.id,
-                    detail=f"bot_id={bot.id} provider={bot.provider}",
+                    detail=f"agent_id={agent.id} provider={effective_provider} model={effective_model}",
                 )
                 db.add(audit)
                 await db.commit()
 
                 yield f"event: done\ndata: {json.dumps({'id': msg.id, 'session_id': session.id, 'role': 'assistant', 'content': full_response, 'created_at': msg.created_at.isoformat()})}\n\n"
-                logger.info("llm.stream.complete session_id=%s provider=%s", session.id, bot.provider)
+                logger.info("llm.stream.complete session_id=%s provider=%s", session.id, effective_provider)
 
-                # Auto-name and auto-save after the very first exchange if substantive
-                _, total_msgs = await self._message_svc.list_messages(session.id, 1, 2, db)
-                if total_msgs == 2:
-                    title = await self._generate_title(content, full_response, bot, api_key)
+                # Auto-name and auto-save on every exchange until the session is saved
+                sess_result = await db.execute(select(ChatSession).where(ChatSession.id == session.id))
+                current_session = sess_result.scalar_one_or_none()
+                if current_session and not current_session.is_saved:
+                    title = await self._generate_title(
+                        content, full_response, agent, api_key,
+                        effective_provider, effective_model,
+                    )
                     if title and title.upper() != "SKIP":
                         now = datetime.now(timezone.utc)
                         await db.execute(

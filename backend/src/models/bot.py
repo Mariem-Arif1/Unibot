@@ -20,6 +20,7 @@ class Bot(Base):
     max_tokens: Mapped[int] = mapped_column(Integer(), nullable=False, default=1024)
     context_window_tokens: Mapped[int] = mapped_column(Integer(), nullable=False, default=4000)
     is_active: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=True)
+    agent_type: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(), nullable=False, server_default=text("GETUTCDATE()")
     )

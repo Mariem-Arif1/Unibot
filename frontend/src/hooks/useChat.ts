@@ -8,7 +8,7 @@ import { apiUrl } from "@/services/apiClient";
 import type { ChatMessage, OptimisticMessage } from "@/types";
 
 export function useChat() {
-  const { currentSession, isStreaming } = useChatState();
+  const { currentSession, isStreaming, selectedModel } = useChatState();
   const dispatch = useChatDispatch();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -39,7 +39,11 @@ export function useChat() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ content }),
+            body: JSON.stringify({
+              content,
+              provider: selectedModel.provider,
+              model: selectedModel.model,
+            }),
             signal: ctrl.signal,
 
             onopen: async (res) => {
@@ -101,6 +105,23 @@ export function useChat() {
                   if (is_saved) {
                     swrMutate(`sessions-${currentSession.bot_id}`);
                   }
+                } catch {
+                  // ignore malformed event
+                }
+              } else if (ev.event === "tool_call") {
+                try {
+                  const d = JSON.parse(ev.data) as { tool: string; args: object };
+                  dispatch({ type: "TOOL_CALL_START", payload: { tool: d.tool, args: d.args } });
+                } catch {
+                  // ignore malformed event
+                }
+              } else if (ev.event === "tool_result") {
+                try {
+                  const d = JSON.parse(ev.data) as { tool: string; row_count: number; success: boolean };
+                  dispatch({
+                    type: "TOOL_CALL_END",
+                    payload: { tool: d.tool, rowCount: d.row_count, success: d.success },
+                  });
                 } catch {
                   // ignore malformed event
                 }

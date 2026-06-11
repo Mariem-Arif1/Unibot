@@ -17,7 +17,7 @@ def _make_engine():
         settings.database_url,
         echo=False,
         pool_pre_ping=True,
-        connect_args={"fast_executemany": True, "MARS_Connection": True},
+        connect_args={"fast_executemany": True, "MARS_Connection": "yes"},
     )
 
 

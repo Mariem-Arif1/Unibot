@@ -30,6 +30,8 @@ async def stream_chat(
                     user_id=current_user.id,
                     content=body.content,
                     db=db,
+                    provider_override=body.provider,
+                    model_override=body.model,
                 )
                 print(">>> got generator, iterating...", flush=True)
                 async for chunk in gen:

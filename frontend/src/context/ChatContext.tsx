@@ -7,34 +7,53 @@ import {
   ReactNode,
   Dispatch,
 } from "react";
-import type { Bot, ChatMessage, ChatSession, OptimisticMessage } from "@/types";
+import type { Agent, ChatMessage, ChatSession, OptimisticMessage } from "@/types";
+import type { ModelOption } from "@/components/chat/ModelSelector";
+import { AVAILABLE_MODELS } from "@/components/chat/ModelSelector";
 
 // ── State ────────────────────────────────────────────────────────────────────
 
+export interface ToolCallState {
+  tool: string;
+  args: object;
+}
+
+export interface ToolResultState {
+  tool: string;
+  rowCount: number;
+  success: boolean;
+}
+
 export interface ChatState {
-  currentBot: Bot | null;
+  currentAgent: Agent | null;
   currentSession: ChatSession | null;
   messages: (ChatMessage | OptimisticMessage)[];
   sessions: ChatSession[];
   isStreaming: boolean;
   streamingContent: string;
   error: string | null;
+  activeToolCall: ToolCallState | null;
+  lastToolResult: ToolResultState | null;
+  selectedModel: ModelOption;
 }
 
 const initialState: ChatState = {
-  currentBot: null,
+  currentAgent: null,
   currentSession: null,
   messages: [],
   sessions: [],
   isStreaming: false,
   streamingContent: "",
   error: null,
+  activeToolCall: null,
+  lastToolResult: null,
+  selectedModel: AVAILABLE_MODELS[0], // default: GPT-4o
 };
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
 export type ChatAction =
-  | { type: "SET_BOT"; bot: Bot }
+  | { type: "SET_AGENT"; agent: Agent }
   | { type: "SET_SESSION"; session: ChatSession; messages: ChatMessage[] }
   | { type: "SET_SESSIONS"; sessions: ChatSession[] }
   | { type: "ADD_SESSION"; session: ChatSession }
@@ -49,14 +68,17 @@ export type ChatAction =
   | { type: "STREAM_ERROR"; error: string }
   | { type: "PREPEND_MESSAGES"; messages: ChatMessage[] }
   | { type: "CLEAR_ERROR" }
-  | { type: "CLEAR_SESSION" };
+  | { type: "CLEAR_SESSION" }
+  | { type: "TOOL_CALL_START"; payload: ToolCallState }
+  | { type: "TOOL_CALL_END"; payload: ToolResultState }
+  | { type: "SET_MODEL"; model: ModelOption };
 
 // ── Reducer ───────────────────────────────────────────────────────────────────
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
-    case "SET_BOT":
-      return { ...state, currentBot: action.bot };
+    case "SET_AGENT":
+      return { ...state, currentAgent: action.agent };
 
     case "SET_SESSION":
       return {
@@ -137,6 +159,15 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case "CLEAR_SESSION":
       return { ...state, currentSession: null, messages: [], streamingContent: "", error: null };
+
+    case "TOOL_CALL_START":
+      return { ...state, activeToolCall: action.payload, lastToolResult: null };
+
+    case "TOOL_CALL_END":
+      return { ...state, activeToolCall: null, lastToolResult: action.payload };
+
+    case "SET_MODEL":
+      return { ...state, selectedModel: action.model };
 
     default:
       return state;

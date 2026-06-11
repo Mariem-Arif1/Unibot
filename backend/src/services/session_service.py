@@ -23,14 +23,14 @@ class SessionService:
     async def create(
         self,
         user_id: str,
-        bot_id: str,
+        agent_id: str,
         name: str | None,
         db: AsyncSession,
     ) -> ChatSession:
         session = ChatSession(
             id=str(uuid.uuid4()),
             user_id=user_id,
-            bot_id=bot_id,
+            agent_id=agent_id,
             name=name.strip() if name else _default_name(),
         )
         db.add(session)
@@ -53,13 +53,13 @@ class SessionService:
     async def list(
         self,
         user_id: str,
-        bot_id: str,
+        agent_id: str,
         db: AsyncSession,
     ) -> tuple[list[ChatSession], int]:
         count_result = await db.execute(
             select(func.count()).select_from(ChatSession).where(
                 ChatSession.user_id == user_id,
-                ChatSession.bot_id == bot_id,
+                ChatSession.agent_id == agent_id,
                 ChatSession.is_saved == True,  # noqa: E712
             )
         )
@@ -69,7 +69,7 @@ class SessionService:
             select(ChatSession)
             .where(
                 ChatSession.user_id == user_id,
-                ChatSession.bot_id == bot_id,
+                ChatSession.agent_id == agent_id,
                 ChatSession.is_saved == True,  # noqa: E712
             )
             .order_by(ChatSession.updated_at.desc())

@@ -6,22 +6,22 @@ import { ChatProvider, useChatDispatch } from "@/context/ChatContext";
 import AppHeader from "@/components/layout/AppHeader";
 import SessionSidebar from "@/components/sessions/SessionSidebar";
 import ChatArea from "@/components/chat/ChatArea";
-import { getBot } from "@/services/botService";
-import type { Bot } from "@/types";
+import { getAgent } from "@/services/agentService";
+import type { Agent } from "@/types";
 
 function ChatPageInner() {
   const params = useParams();
-  const botId = params.botId as string;
+  const agentId = params.botId as string;
   const dispatch = useChatDispatch();
-  const [bot, setBot] = useState<Bot | null>(null);
+  const [agent, setAgent] = useState<Agent | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    getBot(botId).then((b) => {
-      setBot(b);
-      dispatch({ type: "SET_BOT", bot: b });
+    getAgent(agentId).then((a) => {
+      setAgent(a);
+      dispatch({ type: "SET_AGENT", agent: a });
     });
-  }, [botId, dispatch]);
+  }, [agentId, dispatch]);
 
   return (
     <div className="flex flex-col h-screen bg-[#0f0f0f]">
@@ -30,7 +30,7 @@ function ChatPageInner() {
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar */}
         <aside className="hidden md:flex w-60 shrink-0 border-r border-white/[0.06] flex-col">
-          <SessionSidebar botId={botId} />
+          <SessionSidebar agentId={agentId} />
         </aside>
 
         {/* Mobile sidebar overlay */}
@@ -42,7 +42,7 @@ function ChatPageInner() {
             />
             <aside className="relative z-50 w-72 border-r border-white/[0.06] flex flex-col h-full">
               <SessionSidebar
-                botId={botId}
+                agentId={agentId}
                 onSessionSelect={() => setSidebarOpen(false)}
               />
             </aside>
@@ -51,7 +51,7 @@ function ChatPageInner() {
 
         {/* Main chat area */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {bot ? (
+          {agent ? (
             <ChatArea />
           ) : (
             <div className="flex-1 flex items-center justify-center text-[#3a3a3f] text-sm">

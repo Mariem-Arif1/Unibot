@@ -8,15 +8,14 @@ import {
   ChangeEvent,
 } from "react";
 import { SendHorizontal } from "lucide-react";
-import type { Bot } from "@/types";
-import BotSelector from "./BotSelector";
+import ModelSelector from "./ModelSelector";
+import { useChatState, useChatDispatch } from "@/context/ChatContext";
 
 interface MessageInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
   value: string;
   onChange: (value: string) => void;
-  currentBot?: Bot | null;
 }
 
 export default function MessageInput({
@@ -24,9 +23,10 @@ export default function MessageInput({
   disabled = false,
   value,
   onChange,
-  currentBot,
 }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { selectedModel } = useChatState();
+  const dispatch = useChatDispatch();
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -78,10 +78,11 @@ export default function MessageInput({
           />
 
           <div className="flex items-center justify-between px-3 pb-3">
-            {/* Left: bot selector */}
-            <div>
-              {currentBot && <BotSelector currentBot={currentBot} />}
-            </div>
+            {/* Left: model selector */}
+            <ModelSelector
+              selected={selectedModel}
+              onChange={(m) => dispatch({ type: "SET_MODEL", model: m })}
+            />
 
             {/* Right: send button */}
             <button

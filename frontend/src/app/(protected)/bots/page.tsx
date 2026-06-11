@@ -5,14 +5,14 @@ import { Zap } from "lucide-react";
 import AppHeader from "@/components/layout/AppHeader";
 import RayBackground from "@/components/layout/RayBackground";
 import BotCard from "@/components/bots/BotCard";
-import { useBots } from "@/hooks/useBots";
+import { useAgents } from "@/hooks/useAgents";
 
 export default function BotsPage() {
   const router = useRouter();
-  const { bots, isLoading, error } = useBots();
+  const { agents, isLoading, error } = useAgents();
 
-  function handleBotClick(botId: string) {
-    router.push(`/bots/${botId}`);
+  function handleAgentClick(agentId: string) {
+    router.push(`/bots/${agentId}`);
   }
 
   return (
@@ -32,16 +32,16 @@ export default function BotsPage() {
             <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight mb-3">
               Choose your{" "}
               <span className="bg-gradient-to-b from-[#4da5fc] via-[#4da5fc] to-white bg-clip-text text-transparent italic">
-                assistant
+                agent
               </span>
             </h1>
             <p className="text-base text-[#6a6a6f] max-w-md mx-auto">
-              Each bot is configured with its own tools, context, and
+              Each agent is configured with its own tools, context, and
               capabilities.
             </p>
           </div>
 
-          {/* Bot grid */}
+          {/* Agent grid */}
           <div className="w-full max-w-4xl">
             {isLoading && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -63,20 +63,20 @@ export default function BotsPage() {
 
             {error && (
               <p className="text-center text-sm text-red-400">
-                Failed to load bots. Please refresh.
+                Failed to load agents. Please refresh.
               </p>
             )}
 
-            {!isLoading && !error && bots.length === 0 && (
+            {!isLoading && !error && agents.length === 0 && (
               <p className="text-center text-sm text-[#4a4a4f] italic">
-                No bots assigned to your account yet.
+                No agents available yet.
               </p>
             )}
 
-            {!isLoading && !error && bots.length > 0 && (
+            {!isLoading && !error && agents.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {bots.map((bot) => (
-                  <BotCard key={bot.id} bot={bot} onClick={handleBotClick} />
+                {agents.map((agent) => (
+                  <BotCard key={agent.id} agent={agent} onClick={handleAgentClick} />
                 ))}
               </div>
             )}

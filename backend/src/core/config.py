@@ -17,6 +17,15 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     gemini_api_key: str = ""
 
+    # Business Central database — ODBC connection string (NOT SQLAlchemy URL).
+    # Example: DRIVER={ODBC Driver 17 for SQL Server};SERVER=host\INSTANCE;DATABASE=db;Trusted_Connection=yes;
+    bc_database_url: str = ""
+
+    # Business Central company name prefix used in SQL Server table names.
+    # BC names tables as "{company}${TableName}" (e.g. "CRONUS$Item").
+    # Leave empty if your tables have no prefix.
+    bc_company_name: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",")]

@@ -24,7 +24,7 @@ async def create_session(
 ):
     session = await _session_svc.create(
         user_id=current_user.id,
-        bot_id=body.bot_id,
+        agent_id=body.agent_id,
         name=body.name,
         db=db,
     )
@@ -33,13 +33,13 @@ async def create_session(
 
 @router.get("", response_model=SessionListOut)
 async def list_sessions(
-    bot_id: str = Query(..., description="Filter sessions by bot ID"),
+    agent_id: str = Query(..., description="Filter sessions by agent ID"),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_session),
 ):
     sessions, total = await _session_svc.list(
         user_id=current_user.id,
-        bot_id=bot_id,
+        agent_id=agent_id,
         db=db,
     )
     return SessionListOut(

@@ -1,16 +1,16 @@
 import { apiFetch } from "./apiClient";
 import type { ChatSession, Paginated } from "@/types";
 
-export async function listSessions(botId: string): Promise<ChatSession[]> {
-  const res = await apiFetch(`/api/v1/sessions?bot_id=${botId}`);
+export async function listSessions(agentId: string): Promise<ChatSession[]> {
+  const res = await apiFetch(`/api/v1/sessions?agent_id=${agentId}`);
   const data: Paginated<ChatSession> = await res.json();
   return data.items;
 }
 
-export async function createSession(botId: string, name?: string): Promise<ChatSession> {
+export async function createSession(agentId: string, name?: string): Promise<ChatSession> {
   const res = await apiFetch("/api/v1/sessions", {
     method: "POST",
-    body: JSON.stringify({ bot_id: botId, name }),
+    body: JSON.stringify({ agent_id: agentId, name }),
   });
   return res.json();
 }

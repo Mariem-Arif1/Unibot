@@ -7,17 +7,17 @@ import { listMessages } from "@/services/messageService";
 import SessionListItem from "./SessionListItem";
 
 interface SessionSidebarProps {
-  botId: string;
+  agentId: string;
   onSessionSelect?: () => void;
 }
 
 export default function SessionSidebar({
-  botId,
+  agentId,
   onSessionSelect,
 }: SessionSidebarProps) {
   const { currentSession } = useChatState();
   const dispatch = useChatDispatch();
-  const { sessions, isLoading, mutate } = useSessions(botId);
+  const { sessions, isLoading, mutate } = useSessions(agentId);
 
   function handleNewChat() {
     dispatch({ type: "CLEAR_SESSION" });
