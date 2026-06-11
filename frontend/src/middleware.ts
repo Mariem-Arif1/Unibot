@@ -22,7 +22,11 @@ export async function middleware(request: NextRequest) {
 
   // Lightweight client-side expiry check (not authoritative — backend validates)
   try {
-    const payload = jwtDecode<{ exp: number }>(accessToken);
+    const payload = jwtDecode<{ exp: number; role: string }>(accessToken);
+
+    if (pathname.startsWith("/admin") && payload.role !== "admin") {
+      return NextResponse.redirect(new URL("/bots", request.url));
+    }
     const now = Math.floor(Date.now() / 1000);
     if (payload.exp - now < 60) {
       // Token expires within 60 s — attempt silent refresh

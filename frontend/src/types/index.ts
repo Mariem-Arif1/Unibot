@@ -7,6 +7,7 @@ export interface User {
   created_at: string;
 }
 
+/** A bot = business persona stored in the `agents` table. */
 export interface Agent {
   id: string;
   name: string;
@@ -14,17 +15,6 @@ export interface Agent {
   agent_type: string | null;
   is_active: boolean;
   created_at: string;
-}
-
-/** Legacy model config — kept for the /bots admin API. Not used in main app flow. */
-export interface Bot {
-  id: string;
-  name: string;
-  description: string | null;
-  provider: "anthropic" | "openai" | "gemini";
-  model: string;
-  is_active: boolean;
-  agent_type: string | null;
 }
 
 export interface ChatSession {
@@ -57,3 +47,64 @@ export interface Paginated<T> {
   page_size?: number;
   has_more?: boolean;
 }
+
+// ── Admin: Bot management (agents table) ────────────────────────────────────
+
+export interface BotAdmin {
+  id: string;
+  name: string;
+  description: string | null;
+  system_prompt: string;
+  agent_type: string | null;
+  temperature: number;
+  max_tokens: number;
+  context_window_tokens: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface BotCreatePayload {
+  name: string;
+  description?: string | null;
+  system_prompt?: string;
+  temperature?: number;
+  max_tokens?: number;
+  context_window_tokens?: number;
+  agent_type?: string | null;
+  is_active?: boolean;
+}
+
+export type BotUpdatePayload = Partial<BotCreatePayload>;
+
+// ── Admin: LLM config management (llm_configs table) ────────────────────────
+
+export interface LLMConfigAdmin {
+  id: string;
+  name: string;
+  description: string | null;
+  provider: string;
+  model: string;
+  api_key_masked: string | null;
+  max_tokens: number;
+  context_window_tokens: number;
+  temperature: number;
+  is_active: boolean;
+  bot_id: string | null;
+  bot_name: string | null;
+  created_at: string;
+}
+
+export interface LLMConfigCreatePayload {
+  name: string;
+  description?: string | null;
+  provider: string;
+  model: string;
+  api_key?: string | null;
+  max_tokens?: number;
+  context_window_tokens?: number;
+  temperature?: number;
+  is_active?: boolean;
+  bot_id?: string | null;
+}
+
+export type LLMConfigUpdatePayload = Partial<LLMConfigCreatePayload>;

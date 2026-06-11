@@ -34,5 +34,4 @@ class OrganizationListOut(BaseModel):
 
 
 class AssignUserRequest(BaseModel):
-    """Set organization_id on a user. Pass None to unassign."""
-    organization_id: str | None
+    user_id: str

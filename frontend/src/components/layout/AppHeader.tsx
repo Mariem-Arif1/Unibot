@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, LogOut, Zap } from "lucide-react";
+import { Menu, LogOut, Zap, Settings } from "lucide-react";
 import { logout } from "@/services/authService";
 import { useAuth } from "@/context/AuthContext";
 
@@ -47,6 +48,15 @@ export default function AppHeader({ onMenuToggle }: AppHeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
+        {user?.role === "admin" && (
+          <Link
+            href="/admin/bots"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-[#8a8a8f] hover:text-white hover:bg-white/[0.06] transition-all"
+          >
+            <Settings className="size-3.5" />
+            Admin
+          </Link>
+        )}
         {user && (
           <span className="hidden sm:block text-xs text-[#6a6a6f]">
             {user.display_name}

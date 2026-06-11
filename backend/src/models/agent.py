@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, func, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
 
@@ -14,7 +14,7 @@ class Agent(Base):
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     agent_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     system_prompt: Mapped[str] = mapped_column(
         Text, nullable=False, default="You are a helpful assistant."
@@ -28,4 +28,8 @@ class Agent(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=text("GETUTCDATE()")
+    )
+
+    llm_configs: Mapped[list["LLMConfig"]] = relationship(  # noqa: F821
+        "LLMConfig", back_populates="bot", cascade="all, delete-orphan"
     )
